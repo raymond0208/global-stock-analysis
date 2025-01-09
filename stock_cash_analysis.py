@@ -8,7 +8,15 @@ companies = {
     'Google': 'GOOGL',
     'ServiceNow': 'NOW',
     'NVIDIA': 'NVDA',
-    'Tesla': 'TSLA'
+    'Tesla': 'TSLA',
+    'Apple': 'AAPL',
+    'Amazon': 'AMZN',
+    'Meta': 'META',
+    'NVIDIA': 'NVDA',
+    'Intel': 'INTC',
+    'Advanced Micro Devices': 'AMD',
+    'Adobe': 'ADBE',
+    'Salesforce': 'CRM',
 }
 
 def get_financial_metrics(ticker_symbol):

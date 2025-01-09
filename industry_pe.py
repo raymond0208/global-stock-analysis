@@ -2,19 +2,21 @@ import yfinance as yf
 import pandas as pd
 
 def get_tech_pe_ratios():
-    # List of major US tech companies and their ticker symbols
+    # List of major US tech companies and their ticker symbols, inline with industry_pe.py stocks.
     tech_tickers = [
-        'AAPL',  # Apple
         'MSFT',  # Microsoft
-        'GOOGL', # Alphabet (Google)
-        'AMZN',  # Amazon
-        'META',  # Meta (Facebook)
+        'GOOGL', # Google
+        'NOW',   # ServiceNow
         'NVDA',  # NVIDIA
-        'ADBE',  # Adobe
-        'CRM',   # Salesforce
+        'TSLA',  # Tesla
+        'AAPL',  # Apple
+        'AMZN',  # Amazon
+        'META',  # Meta
+        'NVDA',  # NVIDIA
         'INTC',  # Intel
         'AMD',   # Advanced Micro Devices
-        'NOW'    # ServiceNowß
+        'ADBE',  # Adobe
+        'CRM',   # Salesforce
     ]
     
     # Create a dictionary to store P/E ratios

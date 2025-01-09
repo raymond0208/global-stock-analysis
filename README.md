@@ -1,6 +1,6 @@
 # Stock Financial Metrics Analysis
 
-This Python application fetches and analyzes financial metrics for major tech companies including Microsoft, Google, ServiceNow, NVIDIA, and Tesla.
+This Python application fetches and analyzes financial metrics for major tech companies like Microsoft, Google, NVIDIA and Tesla.
 
 ## Project Structure
 ```
