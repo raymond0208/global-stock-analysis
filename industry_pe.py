@@ -1,26 +1,20 @@
 import yfinance as yf
 import pandas as pd
 
-def get_tech_pe_ratios():
+def get_consumer_pe_ratios():
     # List of major US tech companies and their ticker symbols
-    tech_tickers = [
-        'AAPL',  # Apple
-        'MSFT',  # Microsoft
-        'GOOGL', # Alphabet (Google)
-        'AMZN',  # Amazon
-        'META',  # Meta (Facebook)
-        'NVDA',  # NVIDIA
-        'ADBE',  # Adobe
-        'CRM',   # Salesforce
-        'INTC',  # Intel
-        'AMD',   # Advanced Micro Devices
-        'NOW'    # ServiceNowß
+    consumer_tickers = [
+        'LULU',  # Lululemon
+        'NKE',  # Nike
+        'UAA', # Under Armour
+        'ADDYY', # Adidas
+        'NB'  # New Balance
     ]
     
     # Create a dictionary to store P/E ratios
     pe_ratios = {}
     
-    for ticker in tech_tickers:
+    for ticker in consumer_tickers:
         try:
             stock = yf.Ticker(ticker)
             #pe_ratio = stock.info.get('forwardPE')  # Get forward next 12 months P/E ratio
@@ -46,9 +40,9 @@ def get_tech_pe_ratios():
     return df, avg_pe
 
 # Run the analysis
-df, avg_pe = get_tech_pe_ratios()
+df, avg_pe = get_consumer_pe_ratios()
 
 # Print results
-print("\nP/E Ratios for Major Tech Companies:")
+print("\nP/E Ratios for Major Consumer Companies:")
 print(df)
 print(f"\nAverage P/E Ratio: {avg_pe:.2f}")

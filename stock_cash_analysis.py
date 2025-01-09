@@ -4,15 +4,15 @@ from tabulate import tabulate
 
 # List of companies to analyze
 companies = {
-    'Microsoft': 'MSFT',
-    'Google': 'GOOGL',
-    'ServiceNow': 'NOW',
-    'NVIDIA': 'NVDA',
-    'Tesla': 'TSLA'
+    'Lululemon': 'LULU',
+    'Nike': 'NKE',
+    'Under Armour': 'UAA',
+    'Adidas': 'ADDYY',
+    'New Balance': 'NB'
 }
 
 def get_financial_metrics(ticker_symbol):
-    """Fetch and calculate financial metrics for a given company."""
+    """Fetch and calculate cash financial metrics for a given company."""
     stock = yf.Ticker(ticker_symbol)
     
     try:
@@ -92,7 +92,7 @@ def main():
     df[ratio_cols] = df[ratio_cols].apply(lambda x: x.map('{:.2f}'.format))
     
     # Print the results
-    print("\nFinancial Metrics Analysis")
+    print("\nCash Financial Metrics Analysis")
     print("=" * 80)
     print(tabulate(df, headers='keys', tablefmt='pretty', showindex=False))
     print("\nNote: Working Capital and Free Cash Flow are in millions (M)")
