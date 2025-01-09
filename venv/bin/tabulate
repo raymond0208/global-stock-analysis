@@ -1,5 +1,5 @@
 #!/bin/sh
-'''exec' "/Users/raymond/Documents/CodingExercise/python_ project_new/stock-report/venv/bin/python3.12" "$0" "$@"
+'''exec' "/Users/raymond/Documents/CodingExercise/python_ project_new/stock-report/venv/bin/python" "$0" "$@"
 ' '''
 # -*- coding: utf-8 -*-
 import re

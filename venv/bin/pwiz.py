@@ -1,4 +1,4 @@
-#!/Users/raymond/Documents/CodingExercise/python_ project_new/stock-report/venv/bin/python3.12
+#!/Users/raymond/Documents/CodingExercise/python_ project_new/stock-report/venv/bin/python
 
 import datetime
 import os
