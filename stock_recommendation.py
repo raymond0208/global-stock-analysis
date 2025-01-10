@@ -54,6 +54,7 @@ def get_recommendation_score(profitability_metrics, financial_metrics, pe_ratio,
     if financial_metrics:
         # Quick Ratio Score (15%)
         quick_ratio = float(financial_metrics['Quick Ratio'])
+        quick_ratio = round(quick_ratio, 2)
         if quick_ratio > 2: score += 15
         elif quick_ratio > 1.5: score += 12
         elif quick_ratio > 1: score += 8
@@ -105,9 +106,9 @@ def main():
                 'Score': score,
                 'Recommendation': recommendation,
                 'P/E Ratio': pe_ratio,
-                'ROE (%)': profitability['ROE (%)'],
-                'Quick Ratio': financial['Quick Ratio'],
-                'EPS/Price (%)': profitability['EPS/Price (%)']
+                'ROE (%)': f"{profitability['ROE (%)']:.2f}",
+                'Quick Ratio': f"{financial['Quick Ratio']:.2f}",
+                'EPS/Price (%)': f"{profitability['EPS/Price (%)']:.2f}"
             })
     
     # Create and format DataFrame
