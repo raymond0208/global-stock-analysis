@@ -100,7 +100,7 @@ def main():
     df[ratio_cols] = df[ratio_cols].apply(lambda x: x.map('{:.2f}'.format))
     
     # Print the results
-    print("\nFinancial Metrics Analysis")
+    print("\nFinancial Cash Metrics Analysis")
     print("=" * 80)
     print(tabulate(df, headers='keys', tablefmt='pretty', showindex=False))
     print("\nNote: Working Capital and Free Cash Flow are in millions (M)")
