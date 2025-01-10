@@ -8,10 +8,10 @@ import requests
 from datetime import datetime, timedelta
 from fredapi import Fred
 from alpha_vantage.timeseries import TimeSeries
+from config import FRED_API_KEY, ALPHA_VANTAGE_KEY
 
-# Add API configurations
-FRED_API_KEY = "942efeb209c582f76e53054844d93fb7"
-ALPHA_VANTAGE_KEY = "OKKF989V4PWYJWSD"
+# Import API configurations
+from config import FRED_API_KEY, ALPHA_VANTAGE_KEY
 fred = Fred(api_key=FRED_API_KEY)
 
 # List of companies to analyze

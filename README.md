@@ -56,6 +56,17 @@ python3.12 stock_analysis.py
 python3.12 industry_pe.py
 ```
 
+5. Configure API keys:
+   ```bash
+   # Copy the template configuration file
+   cp local_config.template.py local_config.py
+   
+   # Edit local_config.py with your API keys
+   # Get your API keys from:
+   # - FRED API: https://fred.stlouisfed.org/docs/api/api_key.html
+   # - Alpha Vantage: https://www.alphavantage.co/
+   ```
+
 ## Output Format
 The application will display:
 1. A formatted table containing:
