@@ -1,15 +1,17 @@
 # Stock Financial Metrics Analysis
 
-This Python application fetches and analyzes financial metrics for major tech companies like Microsoft, Google, NVIDIA and Tesla.
+This Python application fetches and analyzes financial metrics for major tech companies .
 
 ## Project Structure
 ```
 stock-report/
-├── README.md           # Project documentation
-├── requirements.txt    # Python dependencies
-├── .gitignore         # Git ignore patterns
-└── stock_analysis.py  # Main application script
-└── industry_pe.py      # Industry P/E Ratio calculation
+├── README.md # Project documentation
+├── requirements.txt # Python dependencies
+├── .gitignore # Git ignore patterns
+├── stock_recommendation.py # Main recommendation engine
+├── stock_cash_analysis.py # Cash flow and liquidity analysis
+├── profitability_analysis.py # Profitability metrics calculation
+└── industry_pe.py # Industry P/E Ratio calculation
 ```
 
 ## Metrics Calculated
@@ -57,16 +59,24 @@ python3.12 industry_pe.py
 ## Output Format
 The application will display:
 1. A formatted table containing:
-- Company name
 - Working Capital (in millions)
 - Free Cash Flow (in millions)
 - Quick Ratio
 - Current Ratio
 
-2. A list of P/E ratios for the selected stocks
+2. A list of P/E ratios for the selected stocks for valuation
 - Trailing Twelve Month P/E ratio
 - Forward P/E ratio (Can be configured)
 
+3. A list of profitability metrics for the selected stocks
+- Operating Margin (%)
+- Net Profit Margin (%)
+- Return on Equity (ROE)
+- Return on Assets (ROA)
+- EPS/Price Ratio (%)
+
+4. A recommendation based on the selected stocks marks
+- Strong Buy/Buy/Hold/Sell/Strong Sell
 
 ## Troubleshooting
 
