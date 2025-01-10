@@ -1,30 +1,33 @@
 import yfinance as yf
 import pandas as pd
 
+companies = {
+    'Microsoft': 'MSFT',
+    'Google': 'GOOGL',
+    'ServiceNow': 'NOW',
+    'NVIDIA': 'NVDA',
+    'Tesla': 'TSLA',
+    'Apple': 'AAPL',
+    'Amazon': 'AMZN',
+    'Meta': 'META',
+    'NVIDIA': 'NVDA',
+    'Intel': 'INTC',
+    'Advanced Micro Devices': 'AMD',
+    'Adobe': 'ADBE',
+    'Salesforce': 'CRM'
+}
+
 def get_tech_pe_ratios():
     # List of major US tech companies and their ticker symbols, inline with industry_pe.py stocks.
-    tech_tickers = [
-        'MSFT',  # Microsoft
-        'GOOGL', # Google
-        'NOW',   # ServiceNow
-        'NVDA',  # NVIDIA
-        'TSLA',  # Tesla
-        'AAPL',  # Apple
-        'AMZN',  # Amazon
-        'META',  # Meta
-        'NVDA',  # NVIDIA
-        'INTC',  # Intel
-        'AMD',   # Advanced Micro Devices
-        'ADBE',  # Adobe
-        'CRM',   # Salesforce
-    ]
     
     # Create a dictionary to store P/E ratios
     pe_ratios = {}
     
-    for ticker in tech_tickers:
+    for company_name, ticker in companies.items():
         try:
             stock = yf.Ticker(ticker)
+            print(f"Fetching profitability data for {company_name}...")
+
             #pe_ratio = stock.info.get('forwardPE')  # Get forward next 12 months P/E ratio
             pe_ratio = stock.info.get('trailingPE')  # Get Trailing Twelve Month(TTM) P/E ratio
 

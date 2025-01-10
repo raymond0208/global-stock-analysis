@@ -16,7 +16,7 @@ companies = {
     'Intel': 'INTC',
     'Advanced Micro Devices': 'AMD',
     'Adobe': 'ADBE',
-    'Salesforce': 'CRM',
+    'Salesforce': 'CRM'
 }
 
 def get_financial_metrics(ticker_symbol):
