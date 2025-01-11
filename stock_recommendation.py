@@ -28,7 +28,8 @@ companies = {
     'Intel': 'INTC',
     'Advanced Micro Devices': 'AMD',
     'Adobe': 'ADBE',
-    'Salesforce': 'CRM'
+    'Salesforce': 'CRM',
+    'Palantir': 'PLTR'
 }
 
 def get_macro_metrics():
