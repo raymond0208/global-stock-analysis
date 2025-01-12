@@ -46,7 +46,7 @@ class StockPoolComponent:
         with st.form("add_stock_form"):
             col1, col2, col3 = st.columns([2, 2, 1])
             with col1:
-                symbol = st.text_input("Stock Symbol").upper()
+                symbol = st.text_input("Stock Symbol(Enter stock symbol-e.g. AAPL for Apple Inc.)").upper()
             with col2:
                 name = st.text_input("Company Name (optional)")
             with col3:
