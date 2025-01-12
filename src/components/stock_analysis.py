@@ -92,7 +92,7 @@ class StockAnalysisComponent:
 
         st.title("Stock Analysis")
         
-        symbol = st.text_input("Enter Stock Symbol").upper()
+        symbol = st.text_input("Enter Stock Symbol(e.g. AAPL for Apple Inc.)").upper()
         
         if symbol:
             metrics = self.stock_metrics.get_stock_metrics(symbol)
@@ -150,7 +150,16 @@ class StockAnalysisComponent:
 
             if results:
                 df = pd.DataFrame(results)
-                st.dataframe(df.style.highlight_max(axis=0)) 
+                # Add index column starting from 1
+                df.index = range(1, len(df) + 1)
+                df.index.name = 'Number'
+                
+                # Apply highlighting only to numeric columns
+                numeric_cols = [col for col in df.columns if col not in ['Symbol', 'Recommendation']]
+                
+                # Create styler with highlighting only for numeric columns
+                styler = df.style.highlight_max(subset=numeric_cols, axis=0)
+                st.dataframe(styler)
 
     def add_stock(self, symbol, name):
         if not symbol:
