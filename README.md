@@ -4,9 +4,13 @@ A Streamlit application for analyzing stock metrics and managing a stock portfol
 
 ## Features
 - Stock Pool Management
-- Technical Analysis
+![Stock Pool Management](src/images/stock_pool_dark.png)
 - Fundamental Analysis
+![Fundamental Analysis](src/images/stock_analysis_dark.png)
 - Macro-Economic Analysis
+![Macro-Economic Analysis](src/images/macro_analysis_dark.png)
+- Settings
+![Settings](src/images/settings_dark.png)
 
 ## Prerequisites
 - Python 3.12 or higher
