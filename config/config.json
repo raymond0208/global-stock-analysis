@@ -1,0 +1,29 @@
+{
+    "analysis_settings": {
+        "pe_ratio": {
+            "industry_comparison": true,
+            "use_forward_pe": false
+        },
+        "profitability_metrics": {
+            "include_annual": true,
+            "include_quarterly": true
+        },
+        "technical_analysis": {
+            "moving_averages": [
+                20,
+                50,
+                200
+            ],
+            "rsi_period": 14
+        }
+    },
+    "api_keys": {
+        "alpha_vantage_key": "OKKF989V4PWYJWSD",
+        "fred_api_key": "942efeb209c582f76e53054844d93fb7"
+    },
+    "features": {
+        "enable_macro_analysis": true,
+        "enable_stock_analysis": true,
+        "enable_technical_analysis": true
+    }
+}
