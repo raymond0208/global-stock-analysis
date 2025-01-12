@@ -1,31 +1,19 @@
-# Python virtual environment
-venv/
+# Environment variables
+.env
+config/config.yaml
 
-# Python cache files
+# Python
 __pycache__/
 *.py[cod]
 *$py.class
+.Python
+venv/
+ENV/
 
-# Distribution / packaging
-dist/
-build/
-*.egg-info/
-
-# IDE specific files
-.idea/
+# IDE
 .vscode/
-*.swp
-*.swo
+.idea/
 
-# Environment variables
-.env
-
-# Logs
-*.log
-
-# OS specific files
-.DS_Store
-Thumbs.db 
-
-# Local config file
-local_config.py 
+# Local data
+data/*.json
+config/config.json

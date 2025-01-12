@@ -1,30 +1,32 @@
 # Stock Financial Metrics Analysis
 
-This Python application fetches and analyzes financial metrics for major tech companies .
+A Streamlit application for analyzing stock metrics and managing a stock portfolio.
 
-## Project Structure
-```
-stock-report/
-├── README.md # Project documentation
-├── requirements.txt # Python dependencies
-├── .gitignore # Git ignore patterns
-├── stock_recommendation.py # Main recommendation engine
-├── stock_cash_analysis.py # Cash flow and liquidity analysis
-├── profitability_analysis.py # Profitability metrics calculation
-└── industry_pe.py # Industry P/E Ratio calculation
-```
-
-## Metrics Calculated
-- Working Capital (Current Assets - Current Liabilities)
-- Free Cash Flow (Operating Cash Flow - Capital Expenditures)
-- Quick Ratio ((Cash + Short Term Investments) / Current Liabilities)
-- Current Ratio (Current Assets / Current Liabilities)
-- Industry P/E Ratio based on selected stocks(Price per Share / Earnings per Share)
+## Features
+- Stock Pool Management
+- Technical Analysis
+- Fundamental Analysis
+- Macro-Economic Analysis
 
 ## Prerequisites
 - Python 3.12 or higher
-- Git (for version control)
-- Internet connection (for fetching financial data)
+- Git
+
+## Project Structure
+```
+stock-analyzer/
+├── .env.template # Template for environment variables
+├── .gitignore # Git ignore patterns
+├── README.md # Project documentation
+├── requirements.txt # Python dependencies
+├── src/ # Source code
+│ ├── components/ # UI components
+│ ├── models/ # Data models
+│ ├── utils/ # Utilities
+│ └── main.py # Main application
+├── config/ # Configuration files
+└── data/ # Local data storage
+```
 
 ## Setup and Installation
 
@@ -50,10 +52,17 @@ python -m pip install --upgrade pip setuptools wheel
 pip install -r requirements.txt
 ```
 
-4. Run the application:
+4. Configure API keys in .env file:
 ```bash
-python3.12 stock_analysis.py
-python3.12 industry_pe.py
+cp .env.template .env
+```
+Edit the .env file with your API keys from:
+- FRED API: https://fred.stlouisfed.org/docs/api/api_key.html
+- Alpha Vantage API: https://www.alphavantage.co/
+
+5. Run the application:
+```bash
+streamlit run app.py
 ```
 
 5. Configure API keys:
@@ -69,7 +78,7 @@ python3.12 industry_pe.py
 
 ## Output Format
 The application will display:
-1. A formatted table containing:
+1. A formatted stock pool table containing:
 - Working Capital (in millions)
 - Free Cash Flow (in millions)
 - Quick Ratio
