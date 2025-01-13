@@ -200,13 +200,16 @@ class StockPoolComponent:
                             styler = df.style.highlight_max(subset=numeric_cols, axis=0)
                             st.dataframe(styler)
                             
-                            # Create remove buttons
-                            button_cols = st.columns(4)
-                            current_symbols = df['Symbol'].tolist()
-                            for idx, symbol in enumerate(current_symbols):
-                                with button_cols[idx % 4]:
-                                    if st.button(f"Remove {symbol}", key=f"remove_{symbol}_{idx}"):
-                                        self.remove_stock(symbol)
+                            # Dropdown for selecting stocks to remove
+                            selected_stocks = st.multiselect(
+                                "Select stocks to remove",
+                                options=df['Symbol'].tolist(),
+                                format_func=lambda x: f"{x} - {st.session_state.stock_pool[x]}"
+                            )
+                            
+                            if st.button("Delete Selected Stocks"):
+                                for symbol in selected_stocks:
+                                    self.remove_stock(symbol)
                     
                     except Exception as e:
                         st.error(f"Error displaying stock metrics: {str(e)}")
