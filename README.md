@@ -1,140 +1,80 @@
-# Stock Financial Metrics Analysis
+# Stock Analysis Application
 
-A Streamlit application for analyzing stock metrics and managing a stock portfolio.
+A comprehensive stock analysis tool built with Python and Streamlit that provides real-time technical and fundamental analysis of stocks.
 
 ## Features
-- Stock Pool Management
-![Stock Pool Management](src/images/stock_pool_dark.png)
-- Fundamental Analysis
-![Fundamental Analysis](src/images/stock_analysis_dark.png)
-- Macro-Economic Analysis
-![Macro-Economic Analysis](src/images/macro_analysis_dark.png)
-- Settings
-![Settings](src/images/settings_dark.png)
 
-## Prerequisites
-- Python 3.12 or higher
-- Git
+- 🔍 Real-time stock search with company name suggestions
+- 📊 Technical analysis with moving averages and RSI
+- 💰 Financial metrics evaluation
+- 📈 Interactive charts and visualizations
+- 📑 Export capabilities (Excel and PDF reports)
+
+## Quick Start
+
+1. Clone the repository:
+```bash
+git clone <repository-url>
+cd stock-report
+```
+
+2. Create and activate a virtual environment:
+```bash
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+```
+
+3. Install dependencies:
+```bash
+pip install -r requirements.txt
+```
+
+4. Run the application:
+```bash
+streamlit run src/main.py
+```
+
+## Documentation
+
+For detailed usage instructions, please see our [User Guide](docs/user_guide.md).
 
 ## Project Structure
+
 ```
-stock-analyzer/
-├── .env.template # Template for environment variables
-├── .gitignore # Git ignore patterns
-├── README.md # Project documentation
-├── requirements.txt # Python dependencies
-├── src/ # Source code
-│ ├── components/ # UI components
-│ ├── models/ # Data models
-│ ├── utils/ # Utilities
-│ └── main.py # Main application
-├── config/ # Configuration files
-└── data/ # Local data storage
-```
-
-## Setup and Installation
-
-1. Create and activate a virtual environment:
-```bash
-# Create virtual environment with Python 3.12
-python3.12 -m venv venv
-
-# Activate virtual environment
-# On macOS/Linux:
-source venv/bin/activate
-# On Windows:
-.\venv\Scripts\activate
+stock-report/
+├── src/
+│   ├── components/
+│   │   ├── stock_analysis.py
+│   │   ├── stock_pool.py
+│   │   └── settings.py
+│   ├── models/
+│   │   └── stock_metrics.py
+│   ├── utils/
+│   │   └── storage_manager.py
+│   └── main.py
+├── docs/
+│   └── user_guide.md
+├── requirements.txt
+└── README.md
 ```
 
-2. Upgrade pip and install required tools:
-```bash
-python -m pip install --upgrade pip setuptools wheel
-```
+## Dependencies
 
-3. Install the required dependencies:
-```bash
-pip install -r requirements.txt
-```
+- Python 3.12+
+- Streamlit
+- Pandas
+- Plotly
+- yfinance
+- And more (see requirements.txt)
 
-4. Configure API keys in .env file:
-```bash
-cp .env.template .env
-```
-Edit the .env file with your API keys from:
-- FRED API: https://fred.stlouisfed.org/docs/api/api_key.html
-- Alpha Vantage API: https://www.alphavantage.co/
+## Contributing
 
-5. Run the application:
-```bash
-streamlit run app.py
-```
+Contributions are welcome! Please feel free to submit a Pull Request.
 
-5. Configure API keys:
-   ```bash
-   # Copy the template configuration file
-   cp local_config.template.py local_config.py
-   
-   # Edit local_config.py with your API keys
-   # Get your API keys from:
-   # - FRED API: https://fred.stlouisfed.org/docs/api/api_key.html
-   # - Alpha Vantage: https://www.alphavantage.co/
-   ```
+## License
 
-## Output Format
-The application will display:
-1. A formatted stock pool table containing:
-- Working Capital (in millions)
-- Free Cash Flow (in millions)
-- Quick Ratio
-- Current Ratio
+This project is licensed under the Apache License 2.0 - see the LICENSE file for details.
 
-2. A list of P/E ratios for the selected stocks for valuation
-- Trailing Twelve Month P/E ratio
-- Forward P/E ratio (Can be configured)
+## Disclaimer
 
-3. A list of profitability metrics for the selected stocks
-- Operating Margin (%)
-- Net Profit Margin (%)
-- Return on Equity (ROE)
-- Return on Assets (ROA)
-- EPS/Price Ratio (%)
-
-4. A recommendation based on the selected stocks marks
-- Strong Buy/Buy/Hold/Sell/Strong Sell
-
-## Troubleshooting
-
-### Virtual Environment Issues
-If you encounter issues with package imports or pip:
-
-1. Ensure you're using the correct Python version:
-```bash
-python --version  # Should show Python 3.12.x
-```
-
-2. Verify virtual environment activation:
-```bash
-# You should see (venv) at the start of your prompt
-# If not, reactivate the virtual environment
-source venv/bin/activate  # On macOS/Linux
-```
-
-3. If problems persist, recreate the virtual environment:
-```bash
-# Remove old environment
-rm -rf venv
-
-# Create new environment
-python3.12 -m venv venv
-
-# Activate and install dependencies
-source venv/bin/activate
-python -m pip install --upgrade pip setuptools wheel
-pip install -r requirements.txt
-```
-
-## Notes
-- All monetary values (Working Capital and Free Cash Flow) are displayed in millions (M)
-- The application uses the yfinance library to fetch financial data
-- Due to rate limiting, you might need to wait a few seconds between requests
-- Make sure you have a stable internet connection when running the application
+This application is for informational purposes only. The analysis and information provided should not be considered as financial advice. Always conduct your own research and consult with financial professionals before making investment decisions.
