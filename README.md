@@ -4,11 +4,14 @@ A comprehensive stock analysis tool built with Python and Streamlit that provide
 
 ## Features
 
-- 🔍 Real-time stock search with company name suggestions
-- 📊 Technical analysis with moving averages and RSI
-- 💰 Financial metrics evaluation
-- 📈 Interactive charts and visualizations
+- 🔍 Real-time stock search and create your own stock pool
+![alt text](src/images/stock_pool_light.png)
+- 📊 Auto stock analysis and recommendations algorithms based on latest financial metrics
+![alt text](src/images/Stock_Analysis_light.png)
+- 💰 Macro market evaluation based on latest data
+![alt text](src/images/macro_analysis_light.png)
 - 📑 Export capabilities (Excel and PDF reports)
+![alt text](src/images/Stock_report_PDF.png)
 
 ## Quick Start
 
