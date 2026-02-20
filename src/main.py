@@ -7,11 +7,6 @@ from src.utils.config_manager import ConfigManager
 
 class StockAnalyzerApp:
     def __init__(self):
-        st.set_page_config(
-            page_title="Stock Analyzer",
-            page_icon="📈",
-            layout="wide"
-        )
         self.config_manager = ConfigManager()
         self.initialize_session_state()
 
@@ -59,6 +54,3 @@ class StockAnalyzerApp:
         except Exception as e:
             st.error(f"An error occurred: {str(e)}")
 
-if __name__ == "__main__":
-    app = StockAnalyzerApp()
-    app.run() 
