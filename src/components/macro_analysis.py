@@ -47,7 +47,7 @@ class MacroAnalysisComponent:
             
             with col2:
                 st.metric("CPI Year-over-Year", f"{metrics['CPI_YoY']:.2f}%")
-                st.metric("Manufacturing PMI", f"{metrics['Manufacturing_PMI']:.1f}")
+                st.metric("Manufacturing PMI (proxy)", f"{metrics['Manufacturing_PMI']:.1f}")
 
             # Calculate and display market sentiment
             sentiment = self.macro_metrics.get_macro_recommendation(metrics)
@@ -81,9 +81,9 @@ class MacroAnalysisComponent:
                 "impact": "Indicates overall economic health and expansion/contraction.",
                 "threshold": "Healthy growth is typically 2-3%"
             },
-            "Manufacturing PMI": {
+            "Manufacturing PMI (proxy)": {
                 "value": metrics['Manufacturing_PMI'],
-                "impact": "Above 50 indicates expansion, below 50 indicates contraction.",
+                "impact": "Derived from month-over-month change in manufacturing employment. Above 50 indicates expansion, below 50 indicates contraction.",
                 "threshold": "50 is the neutral point"
             }
         }

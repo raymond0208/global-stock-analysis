@@ -72,7 +72,7 @@ class StockPoolComponent:
             if 'stock_metrics_results' in st.session_state:
                 del st.session_state.stock_metrics_results
             # Force a complete rerun to refresh the UI
-            st.experimental_rerun()
+            st.rerun()
 
     def render(self):
         st.title("Stock Pool Management")
@@ -147,7 +147,7 @@ class StockPoolComponent:
                                 st.session_state.search_query = ''
                                 if 'stock_metrics_results' in st.session_state:
                                     del st.session_state.stock_metrics_results
-                                st.experimental_rerun()
+                                st.rerun()
                     else:
                         st.warning("Please select a stock first")
 
@@ -195,9 +195,15 @@ class StockPoolComponent:
                             
                             # Apply highlighting only to numeric columns
                             numeric_cols = [col for col in df.columns if col not in ['Symbol', 'Company', 'Recommendation']]
-                            
-                            # Create styler with highlighting only for numeric columns
-                            styler = df.style.highlight_max(subset=numeric_cols, axis=0)
+
+                            # Coerce to numeric to avoid TypeError from mixed/None values
+                            df[numeric_cols] = df[numeric_cols].apply(pd.to_numeric, errors='coerce')
+
+                            # Only highlight columns that have at least one valid (non-NaN) value,
+                            # to avoid ValueError when all values in a column are NaN
+                            valid_numeric_cols = [col for col in numeric_cols if df[col].notna().any()]
+
+                            styler = df.style.highlight_max(subset=valid_numeric_cols, axis=0)
                             st.dataframe(styler)
                             
                             # Dropdown for selecting stocks to remove
