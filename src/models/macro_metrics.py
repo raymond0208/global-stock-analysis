@@ -19,16 +19,15 @@ class MacroMetrics:
     def get_macro_metrics(self):
         try:
             # Updated series IDs
-            ffr = self._safe_get_series('FEDFUNDS', 'Federal Funds Rate')  # Changed from DFF
-            gdp = self._safe_get_series('GDP', 'GDP')  # Changed from GDPC1
+            ffr = self._safe_get_series('FEDFUNDS', 'Federal Funds Rate')
+            gdp = self._safe_get_series('GDP', 'GDP')
             cpi = self._safe_get_series('CPIAUCSL', 'CPI')
-            pmi = self._safe_get_series('MANEMP', 'Manufacturing Employment')  # Changed from ISM
 
-            if None in [ffr, gdp, cpi, pmi]:
+            if None in [ffr, gdp, cpi]:
                 print("One or more metrics returned None")  # Debug output
                 return None
 
-            # Calculate GDP growth rate
+            # Calculate GDP growth rate (quarter-over-quarter annualised proxy)
             gdp_series = self.fred.get_series('GDP')
             gdp_growth = ((gdp_series.iloc[-1] - gdp_series.iloc[-2]) / gdp_series.iloc[-2]) * 100
 
@@ -36,11 +35,29 @@ class MacroMetrics:
             cpi_series = self.fred.get_series('CPIAUCSL')
             cpi_yoy = ((cpi_series.iloc[-1] - cpi_series.iloc[-13]) / cpi_series.iloc[-13]) * 100
 
+            # Manufacturing PMI proxy: use month-over-month change in manufacturing employment
+            # (MANEMP, thousands of persons) normalised to a 50-centred PMI-like index so
+            # the scoring logic (>50 = expansion, <50 = contraction) remains meaningful.
+            try:
+                manemp_series = self.fred.get_series('MANEMP')
+                manemp_series = manemp_series.dropna()
+                if len(manemp_series) >= 2:
+                    mom_pct = ((manemp_series.iloc[-1] - manemp_series.iloc[-2])
+                               / manemp_series.iloc[-2]) * 100
+                    # Scale: ±0.5 % MoM maps to roughly ±5 PMI points around 50
+                    manufacturing_pmi = 50 + (mom_pct * 10)
+                    manufacturing_pmi = max(0, min(100, manufacturing_pmi))
+                else:
+                    manufacturing_pmi = 50  # Neutral fallback
+            except Exception as e:
+                print(f"Error calculating manufacturing PMI proxy: {str(e)}")
+                manufacturing_pmi = 50  # Neutral fallback
+
             return {
                 'Federal_Funds_Rate': ffr,
                 'GDP_Growth': gdp_growth,
                 'CPI_YoY': cpi_yoy,
-                'Manufacturing_PMI': pmi
+                'Manufacturing_PMI': manufacturing_pmi
             }
         except Exception as e:
             print(f"Error in get_macro_metrics: {str(e)}")  # Debug output

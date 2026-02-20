@@ -183,7 +183,7 @@ class StockAnalysisComponent:
                             st.session_state.clear_search = True
                             st.session_state.selected_stock = None
                             st.session_state.search_query = ''
-                            st.experimental_rerun()
+                            st.rerun()
                     else:
                         st.warning("Please select a stock first")
 
@@ -246,7 +246,10 @@ class StockAnalysisComponent:
         
         # Convert timezone-aware timestamps to timezone-naive
         time_series_df = time_series_df.copy()
-        time_series_df.index = time_series_df.index.tz_localize(None)
+        if time_series_df.index.tz is not None:
+            time_series_df.index = time_series_df.index.tz_convert(None)
+        else:
+            time_series_df.index = time_series_df.index.tz_localize(None)
         
         with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
             # Write summary sheet
@@ -437,26 +440,3 @@ class StockAnalysisComponent:
                     mime="application/pdf"
                 )
 
-    def add_stock(self, symbol, name):
-        if not symbol:
-            st.error("Please enter a stock symbol")
-            return
-        
-        if symbol in st.session_state.stock_pool:
-            st.warning(f"{symbol} is already in your stock pool")
-            return
-        
-        # Verify the stock exists
-        info = self.data_fetcher.get_stock_info(symbol)
-        if info:
-            if not name:  # If user didn't provide a name, use the one from API
-                name = info['name']
-            st.session_state.stock_pool[symbol] = name
-            st.success(f"Added {symbol} to your stock pool")
-        else:
-            st.error(f"Could not verify stock symbol {symbol}")
-
-    def remove_stock(self, symbol):
-        if symbol in st.session_state.stock_pool:
-            del st.session_state.stock_pool[symbol]
-            st.success(f"Removed {symbol} from your stock pool") 
