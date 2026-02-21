@@ -25,22 +25,28 @@ class StockAnalyzerApp:
             st.session_state.config_manager = self.config_manager
 
     def run(self):
-        st.sidebar.title("Navigation")
-        
-        # Check if API keys are configured
-        fred_key = self.config_manager.get_api_key('fred_api_key')
-        alpha_key = self.config_manager.get_api_key('alpha_vantage_key')
-        
-        if not (fred_key and alpha_key):
-            st.warning("Please configure your API keys in the Settings page")
-        
-        page = st.sidebar.radio(
-            "Select a page",
-            ["Stock Pool", "Stock Analysis", "Macro Analysis", "Settings"]
-        )
+        with st.sidebar:
+            st.markdown(
+                '<p style="font-size:1.25rem;font-weight:700;color:#0f172a;'
+                'margin-bottom:1.5rem;letter-spacing:-0.01em">📈 Stock Analyzer</p>',
+                unsafe_allow_html=True,
+            )
+
+            page = st.radio(
+                "Navigate",
+                ["Markets", "Stock Analysis", "Macro Analysis", "Settings"],
+                label_visibility="collapsed",
+            )
+
+            # Subtle API-key reminder in the sidebar footer
+            fred_key  = self.config_manager.get_api_key('fred_api_key')
+            alpha_key = self.config_manager.get_api_key('alpha_vantage_key')
+            if not (fred_key and alpha_key):
+                st.markdown("---")
+                st.caption("⚠️ FRED / Alpha Vantage keys not set — visit **Settings**.")
 
         try:
-            if page == "Stock Pool":
+            if page == "Markets":
                 StockPoolComponent().render()
             elif page == "Stock Analysis":
                 StockAnalysisComponent().render()
