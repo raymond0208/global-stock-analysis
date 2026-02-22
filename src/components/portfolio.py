@@ -137,126 +137,123 @@ class PortfolioComponent:
                             unsafe_allow_html=True,
                         )
 
-        # ── Import / Manual entry ──
-        left, right = st.columns([2, 1], gap="large")
-
-        with right:
-            st.markdown('<div class="sec-head">Add Holding</div>', unsafe_allow_html=True)
-            with st.container(border=True):
-                with st.form("add_holding_form", clear_on_submit=True):
-                    sym      = st.text_input("Symbol", placeholder="e.g. 0700.HK")
-                    company  = st.text_input("Company", placeholder="e.g. TENCENT HOLDINGS")
-                    shares   = st.number_input("Shares", min_value=0.0, step=1.0)
-                    price    = st.number_input("Avg Cost Price", min_value=0.0, step=0.01)
+        # ── Add Holding form (full-width expander) ──
+        with st.expander("➕ Add Holding", expanded=not holdings):
+            with st.form("add_holding_form", clear_on_submit=True):
+                c1, c2, c3, c4, c5 = st.columns([2, 3, 1, 2, 1])
+                with c1:
+                    sym = st.text_input("Symbol", placeholder="e.g. NVDA")
+                with c2:
+                    company = st.text_input("Company", placeholder="e.g. NVIDIA Corporation")
+                with c3:
+                    shares = st.number_input("Shares", min_value=0.0, step=1.0)
+                with c4:
+                    price = st.number_input("Avg Cost Price", min_value=0.0, step=0.01)
+                with c5:
                     currency = st.selectbox("Currency", ["SGD", "HKD", "USD"])
-                    if st.form_submit_button("Add Holding", type="primary", use_container_width=True):
-                        if sym and shares > 0:
-                            entry = {
-                                "symbol":         sym.strip().upper(),
-                                "company":        company.strip() or sym.strip().upper(),
-                                "shares":         float(shares),
-                                "purchase_price": float(price),
-                                "currency":       currency,
-                            }
-                            st.session_state.portfolio["holdings"].append(entry)
-                            st.session_state.storage_manager.save_portfolio(st.session_state.portfolio)
-                            st.success(f"Added {entry['symbol']}")
-                            st.rerun()
-                        else:
-                            st.warning("Enter a symbol and shares.")
+                if st.form_submit_button("Add Holding", type="primary"):
+                    if sym and shares > 0:
+                        entry = {
+                            "symbol":         sym.strip().upper(),
+                            "company":        company.strip() or sym.strip().upper(),
+                            "shares":         float(shares),
+                            "purchase_price": float(price),
+                            "currency":       currency,
+                        }
+                        st.session_state.portfolio["holdings"].append(entry)
+                        st.session_state.storage_manager.save_portfolio(st.session_state.portfolio)
+                        st.success(f"Added {entry['symbol']}")
+                        st.rerun()
+                    else:
+                        st.warning("Enter a symbol and shares.")
 
-        # ── Holdings table ──
-        with left:
-            if not holdings:
-                st.info("No holdings yet. Add a holding using the form on the right.")
-                return
+        # ── Holdings table (full width) ──
+        if not holdings:
+            st.info("No holdings yet. Use the Add Holding form above to get started.")
+            return
 
-            fx_rates     = self._get_fx_rates()
-            prices_local = self._get_prices_local(holdings)
+        fx_rates     = self._get_fx_rates()
+        prices_local = self._get_prices_local(holdings)
 
-            # Group by currency / region
-            regions = {"SGD": "SG", "HKD": "HK", "USD": "US"}
-            grouped: dict[str, list] = {"SG": [], "HK": [], "US": []}
-            for h in holdings:
-                r = regions.get(h["currency"], "US")
-                grouped[r].append(h)
+        # Group by currency / region
+        regions = {"SGD": "SG", "HKD": "HK", "USD": "US"}
+        grouped: dict[str, list] = {"SG": [], "HK": [], "US": []}
+        for h in holdings:
+            r = regions.get(h["currency"], "US")
+            grouped[r].append(h)
 
-            rows_html = ""
+        rows_html = ""
 
-            for region, region_holdings in grouped.items():
-                if not region_holdings:
-                    continue
-                ccy_color = {"SG": "#3b82f6", "HK": "#f59e0b", "US": "#10b981"}.get(region, "#94a3b8")
+        for region, region_holdings in grouped.items():
+            if not region_holdings:
+                continue
+            ccy_color = {"SG": "#3b82f6", "HK": "#f59e0b", "US": "#10b981"}.get(region, "#94a3b8")
+            rows_html += (
+                f'<tr style="background:#f8fafc">'
+                f'  <td colspan="8">'
+                f'    <span style="font-size:0.7rem;font-weight:700;color:{ccy_color};'
+                f'    letter-spacing:0.05em;text-transform:uppercase">'
+                f'    {region} Exchange</span>'
+                f'  </td>'
+                f'</tr>'
+            )
+            for h in region_holdings:
+                sym    = h["symbol"]
+                ccy    = h["currency"]
+                p_data = _fetch_price(sym)
+                price_local = p_data["price"] if p_data else None
+                value_local = (price_local * h["shares"]) if price_local else None
+                gl_pct = (
+                    (price_local - h["purchase_price"]) / h["purchase_price"] * 100
+                    if h["purchase_price"] and price_local is not None else None
+                )
+
+                ccy_sym = {"SGD": "S$", "HKD": "HK$", "USD": "US$"}.get(ccy, "$")
+
+                price_str = f"{ccy_sym}{price_local:,.3f}" if price_local else "—"
+                value_str = f"{ccy_sym}{value_local:,.2f}" if value_local else "—"
+                gl_str    = ""
+                gl_color  = "#64748b"
+                if gl_pct is not None:
+                    gl_color = "#16a34a" if gl_pct >= 0 else "#dc2626"
+                    gl_str   = f"{'+'if gl_pct>=0 else ''}{gl_pct:.1f}%"
+
                 rows_html += (
-                    f'<tr style="background:#f8fafc">'
-                    f'  <td colspan="8">'
-                    f'    <span style="font-size:0.7rem;font-weight:700;color:{ccy_color};'
-                    f'    letter-spacing:0.05em;text-transform:uppercase">'
-                    f'    {region} Exchange</span>'
-                    f'  </td>'
+                    f'<tr>'
+                    f'  <td><div class="wl-sym">{sym}</div></td>'
+                    f'  <td><div class="wl-corp">{h["company"]}</div></td>'
+                    f'  <td style="text-align:right">{ccy}</td>'
+                    f'  <td style="text-align:right">{h["shares"]:,.0f}</td>'
+                    f'  <td style="text-align:right">{ccy_sym}{h["purchase_price"]:,.3f}</td>'
+                    f'  <td style="text-align:right">{price_str}</td>'
+                    f'  <td style="text-align:right">{value_str}</td>'
+                    f'  <td style="text-align:right;color:{gl_color}">{gl_str}</td>'
                     f'</tr>'
                 )
-                for h in region_holdings:
-                    sym    = h["symbol"]
-                    ccy    = h["currency"]
-                    p_data = _fetch_price(sym)
-                    price_local = p_data["price"] if p_data else None
-                    value_local = (price_local * h["shares"]) if price_local else None
-                    value_sgd   = (
-                        self.pm.get_sgd_price(price_local * h["shares"], ccy, fx_rates)
-                        if price_local is not None else None
-                    )
-                    gl_pct = (
-                        (price_local - h["purchase_price"]) / h["purchase_price"] * 100
-                        if h["purchase_price"] and price_local is not None else None
-                    )
 
-                    ccy_sym = {"SGD": "S$", "HKD": "HK$", "USD": "US$"}.get(ccy, "$")
+        st.markdown(
+            f'<table class="wl-table">'
+            f'<thead><tr>'
+            f'  <th>Symbol</th><th>Company</th><th>CCY</th><th>Shares</th>'
+            f'  <th>Avg Cost</th><th>Live Price</th><th>Mkt Value</th><th>G/L %</th>'
+            f'</tr></thead>'
+            f'<tbody>{rows_html}</tbody>'
+            f'</table>',
+            unsafe_allow_html=True,
+        )
+        st.markdown("<br>", unsafe_allow_html=True)
 
-                    price_str = f"{ccy_sym}{price_local:,.3f}" if price_local else "—"
-                    value_str = f"{ccy_sym}{value_local:,.2f}" if value_local else "—"
-                    gl_str    = ""
-                    gl_color  = "#64748b"
-                    if gl_pct is not None:
-                        gl_color = "#16a34a" if gl_pct >= 0 else "#dc2626"
-                        gl_str   = f"{'+'if gl_pct>=0 else ''}{gl_pct:.1f}%"
-
-                    rows_html += (
-                        f'<tr>'
-                        f'  <td><div class="wl-sym">{sym}</div></td>'
-                        f'  <td><div class="wl-corp">{h["company"]}</div></td>'
-                        f'  <td style="text-align:right">{ccy}</td>'
-                        f'  <td style="text-align:right">{h["shares"]:,.0f}</td>'
-                        f'  <td style="text-align:right">{ccy_sym}{h["purchase_price"]:,.3f}</td>'
-                        f'  <td style="text-align:right">{price_str}</td>'
-                        f'  <td style="text-align:right">{value_str}</td>'
-                        f'  <td style="text-align:right;color:{gl_color}">{gl_str}</td>'
-                        f'</tr>'
-                    )
-
-            st.markdown(
-                f'<table class="wl-table">'
-                f'<thead><tr>'
-                f'  <th>Symbol</th><th>Company</th><th>CCY</th><th>Shares</th>'
-                f'  <th>Avg Cost</th><th>Live Price</th><th>Mkt Value</th><th>G/L %</th>'
-                f'</tr></thead>'
-                f'<tbody>{rows_html}</tbody>'
-                f'</table>',
-                unsafe_allow_html=True,
+        with st.expander("Remove holdings"):
+            sel = st.multiselect(
+                "Select to remove",
+                options=[h["symbol"] for h in holdings],
+                format_func=lambda x: f"{x} — {next((h['company'] for h in holdings if h['symbol']==x), x)}",
             )
-            st.markdown("<br>", unsafe_allow_html=True)
-
-            with st.expander("Remove holdings"):
-                sel = st.multiselect(
-                    "Select to remove",
-                    options=[h["symbol"] for h in holdings],
-                    format_func=lambda x: f"{x} — {next((h['company'] for h in holdings if h['symbol']==x), x)}",
-                )
-                if st.button("Remove selected", type="primary"):
-                    new_holdings = [h for h in holdings if h["symbol"] not in sel]
-                    st.session_state.portfolio = {"holdings": new_holdings}
-                    st.session_state.storage_manager.save_portfolio(st.session_state.portfolio)
-                    st.rerun()
+            if st.button("Remove selected", type="primary"):
+                new_holdings = [h for h in holdings if h["symbol"] not in sel]
+                st.session_state.portfolio = {"holdings": new_holdings}
+                st.session_state.storage_manager.save_portfolio(st.session_state.portfolio)
+                st.rerun()
 
     # ── Tab 2: Analysis ───────────────────────────────────────────────────
 
