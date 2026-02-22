@@ -17,4 +17,5 @@ ENV/
 
 # Local data
 data/*.json
+!data/portfolio.example.json
 config/config.json
