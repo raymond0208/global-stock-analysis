@@ -1,5 +1,6 @@
 # Environment variables
 .env
+local_config.py
 config/config.yaml
 
 # Python
