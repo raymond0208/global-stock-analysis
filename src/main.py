@@ -3,6 +3,7 @@ from src.components.stock_pool import StockPoolComponent
 from src.components.stock_analysis import StockAnalysisComponent
 from src.components.macro_analysis import MacroAnalysisComponent
 from src.components.settings import SettingsComponent
+from src.components.portfolio import PortfolioComponent
 from src.utils.config_manager import ConfigManager
 
 class StockAnalyzerApp:
@@ -34,7 +35,7 @@ class StockAnalyzerApp:
 
             page = st.radio(
                 "Navigate",
-                ["Markets", "Stock Analysis", "Macro Analysis", "Settings"],
+                ["Markets", "Portfolio", "Stock Analysis", "Macro Analysis", "Settings"],
                 label_visibility="collapsed",
             )
 
@@ -48,6 +49,8 @@ class StockAnalyzerApp:
         try:
             if page == "Markets":
                 StockPoolComponent().render()
+            elif page == "Portfolio":
+                PortfolioComponent().render()
             elif page == "Stock Analysis":
                 StockAnalysisComponent().render()
             elif page == "Macro Analysis":
