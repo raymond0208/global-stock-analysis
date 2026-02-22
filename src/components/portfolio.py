@@ -71,13 +71,13 @@ def _fetch_history(symbol: str, period: str = "1y"):
         return None
 
 
-# ── Phillip Securities PDF parser ────────────────────────────────────────────
+# ── Securities PDF parser ────────────────────────────────────────────
 
-_EXCHANGES   = {"SG", "HK", "US"}
-_CURRENCIES  = {"SGD", "HKD", "USD"}
-_CCY_DEFAULT = {"SG": "SGD", "HK": "HKD", "US": "USD"}
-_SKIP_KEYWORDS = {"TOTAL", "GRAND", "STOCK CODE", "QUANTITY ON HAND",
-                  "AVERAGE COST", "PREVIOUS DAY", "COMPANY NAME", "TRADED CURR"}
+_EXCHANGES    = {"SG", "HK", "US"}
+_CURRENCIES   = {"SGD", "HKD", "USD"}
+_CCY_DEFAULT  = {"SG": "SGD", "HK": "HKD", "US": "USD"}
+_SKIP_WORDS   = {"TOTAL", "GRAND", "STOCK CODE", "QUANTITY ON HAND",
+                 "AVERAGE COST", "PREVIOUS DAY", "COMPANY NAME", "TRADED CURR"}
 
 
 def _clean_float(val) -> float:
@@ -100,37 +100,29 @@ def _normalise_symbol(raw: str, exchange: str) -> str:
 
 
 def _is_skip_row(col0: str, col1: str) -> bool:
-    """True for header / total / blank rows that should be ignored."""
-    upper0 = col0.upper()
-    upper1 = col1.upper()
-    if any(kw in upper0 for kw in _SKIP_KEYWORDS):
-        return True
-    if any(kw in upper1 for kw in _SKIP_KEYWORDS):
-        return True
-    return False
+    u0, u1 = col0.upper(), col1.upper()
+    return any(kw in u0 for kw in _SKIP_WORDS) or any(kw in u1 for kw in _SKIP_WORDS)
 
 
 def _try_tables(pdf) -> list:
     """Pass 1: pdfplumber structured table extraction.
 
-    Tries explicit line-based strategy first, then default auto-detect.
-    Section-header rows ("SG"/"HK"/"US") are correctly handled even when
-    they have fewer than 5 columns (the old len<5 guard caused them to be
-    silently dropped so current_exchange was never updated).
+    Tries three strategies so section-header rows ("SG"/"HK"/"US") are
+    captured even when pdfplumber's auto-detect gives no tables.
+    The old `len(row) < 5` guard was removed: section headers can have
+    any number of columns and must be detected on col0 alone.
     """
     holdings = []
     current_exchange = None
 
-    strategies = [
-        {"vertical_strategy": "lines", "horizontal_strategy": "lines"},
-        {"vertical_strategy": "text",  "horizontal_strategy": "text"},
-        {},   # pdfplumber default
-    ]
-
     for page in pdf.pages:
         tables = []
-        for s in strategies:
-            tables = page.extract_tables(s) if s else page.extract_tables()
+        for settings in [
+            {"vertical_strategy": "lines", "horizontal_strategy": "lines"},
+            {"vertical_strategy": "text",  "horizontal_strategy": "text"},
+            {},   # pdfplumber default
+        ]:
+            tables = page.extract_tables(settings) if settings else page.extract_tables()
             if tables:
                 break
 
@@ -142,12 +134,11 @@ def _try_tables(pdf) -> list:
                 col0 = str(row[0] or "").strip()
                 col1 = str(row[1] or "").strip() if len(row) > 1 else ""
 
-                # ── Exchange section header ──
+                # Exchange section header (may span all columns)
                 if col0 in _EXCHANGES:
                     current_exchange = col0
                     continue
 
-                # ── Skip non-data rows ──
                 if current_exchange is None or not col1:
                     continue
                 if _is_skip_row(col0, col1):
@@ -176,14 +167,14 @@ def _try_tables(pdf) -> list:
 
 
 def _try_text(pdf) -> list:
-    """Pass 2: line-by-line text extraction using currency code as anchor.
+    """Pass 2: line-by-line text extraction, anchored on SGD/HKD/USD.
 
-    For each line that contains SGD/HKD/USD, the token immediately before the
-    currency is the quantity and the token two positions before is the stock
-    code.  Everything to the left of the stock code is the company name.
+    For each line containing a currency token the layout is:
+      ... COMPANY_WORDS  STOCK_CODE  QUANTITY  CURRENCY  AVG_COST ...
+    so stock_code = parts[ccy_idx-2], quantity = parts[ccy_idx-1].
 
-    e.g.  "KEPPEL DC REIT AJBU 12,700 SGD 2.1220 ..."
-           company=KEPPEL DC REIT  symbol=AJBU  shares=12700  ccy=SGD  cost=2.122
+    e.g. "KEPPEL DC REIT AJBU 12,700 SGD 2.1220 ..."
+          company=KEPPEL DC REIT  symbol=AJBU  shares=12700  cost=2.122
     """
     holdings = []
     current_exchange = None
@@ -195,32 +186,25 @@ def _try_text(pdf) -> list:
             if not line:
                 continue
 
-            # Exchange section header (sometimes appears alone on a line)
             if line in _EXCHANGES:
                 current_exchange = line
                 continue
 
-            # Skip known header / total patterns
             upper = line.upper()
-            if any(kw in upper for kw in _SKIP_KEYWORDS):
+            if any(kw in upper for kw in _SKIP_WORDS):
                 continue
-
             if current_exchange is None:
                 continue
 
             parts = line.split()
-
-            # Find the currency token
             ccy_idx = next(
                 (i for i, p in enumerate(parts) if p in _CURRENCIES), None
             )
-            # Need at least: stock_code, quantity, currency (3 tokens before or at ccy)
             if ccy_idx is None or ccy_idx < 2:
                 continue
 
             try:
-                qty_str = parts[ccy_idx - 1].replace(",", "")
-                shares = float(qty_str)
+                shares = float(parts[ccy_idx - 1].replace(",", ""))
                 if shares <= 0:
                     continue
 
@@ -248,14 +232,13 @@ def _try_text(pdf) -> list:
     return holdings
 
 
-def _parse_phillip_pdf(pdf_bytes: bytes) -> list:
-    """Parse Phillip Securities Holdings PDF.
+def _parse_pdf(pdf_bytes: bytes) -> list:
+    """Parse Securities Holdings PDF.
 
-    Tries two strategies in order:
-      1. pdfplumber structured table extraction (multiple line strategies)
-      2. Text-based line parsing anchored on SGD/HKD/USD currency tokens
+    Strategy 1: pdfplumber table extraction (three line strategies).
+    Strategy 2: text-based line parsing anchored on SGD/HKD/USD tokens.
+    If both return empty, a debug expander shows raw text + table dump.
 
-    Shows a debug expander with raw text + table dump when both fail.
     Returns list of {symbol, company, shares, purchase_price, currency}.
     """
     try:
@@ -267,14 +250,11 @@ def _parse_phillip_pdf(pdf_bytes: bytes) -> list:
     holdings = []
     try:
         with pdfplumber.open(io.BytesIO(pdf_bytes)) as pdf:
-            # ── Pass 1: structured tables ──
             holdings = _try_tables(pdf)
 
-            # ── Pass 2: text fallback ──
             if not holdings:
                 holdings = _try_text(pdf)
 
-            # ── Debug: show raw content if still empty ──
             if not holdings:
                 with st.expander("Debug: raw PDF content (no holdings detected)", expanded=True):
                     for i, page in enumerate(pdf.pages):
@@ -282,13 +262,14 @@ def _parse_phillip_pdf(pdf_bytes: bytes) -> list:
                         st.code(page.extract_text() or "(no text)", language=None)
                         tables = page.extract_tables()
                         if tables:
-                            st.markdown(f"**Page {i + 1} — tables ({len(tables)} found, first 5 rows each):**")
+                            st.markdown(
+                                f"**Page {i + 1} — tables ({len(tables)} found, first 5 rows):**"
+                            )
                             for j, tbl in enumerate(tables):
                                 st.markdown(f"Table {j + 1}:")
                                 st.write(tbl[:5])
                         else:
-                            st.markdown(f"*Page {i + 1}: no tables detected by pdfplumber.*")
-
+                            st.markdown(f"*Page {i + 1}: no tables detected.*")
     except Exception as e:
         st.error(f"Error reading PDF: {e}")
 
@@ -372,12 +353,12 @@ class PortfolioComponent:
             st.markdown('<div class="sec-head">Import PDF</div>', unsafe_allow_html=True)
             with st.container(border=True):
                 uploaded = st.file_uploader(
-                    "Phillip Securities PDF",
+                    "Securities PDF",
                     type=["pdf"],
                     label_visibility="collapsed",
                 )
                 if uploaded and st.button("Parse PDF", type="primary", use_container_width=True):
-                    parsed = _parse_phillip_pdf(uploaded.read())
+                    parsed = _parse_pdf(uploaded.read())
                     if parsed:
                         st.session_state.pdf_preview = parsed
                         st.success(f"Parsed {len(parsed)} holdings — review below.")
@@ -432,7 +413,7 @@ class PortfolioComponent:
         # ── Holdings table ──
         with left:
             if not holdings:
-                st.info("No holdings yet. Import a Phillip Securities PDF or add manually.")
+                st.info("No holdings yet. Import a Securities PDF or add manually.")
                 return
 
             fx_rates     = self._get_fx_rates()
