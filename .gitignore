@@ -1,5 +1,6 @@
 # Environment variables
 .env
+local_config.py
 config/config.yaml
 
 # Python
@@ -16,4 +17,5 @@ ENV/
 
 # Local data
 data/*.json
+!data/portfolio.example.json
 config/config.json

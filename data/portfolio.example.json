@@ -1,0 +1,11 @@
+{
+  "holdings": [
+    {
+      "symbol": "NVDA",
+      "company": "NVIDIA Corporation",
+      "shares": 10.0,
+      "purchase_price": 100.0,
+      "currency": "USD"
+    }
+  ]
+}

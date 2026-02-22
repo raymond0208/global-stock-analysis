@@ -7,6 +7,7 @@ class StorageManager:
         self.ensure_data_directory()
         self.stock_pool_file = os.path.join(self.data_dir, "stock_pool.json")
         self.favorite_stocks_file = os.path.join(self.data_dir, "favorite_stocks.json")
+        self.portfolio_file = os.path.join(self.data_dir, "portfolio.json")
 
     def ensure_data_directory(self):
         if not os.path.exists(self.data_dir):
@@ -31,3 +32,13 @@ class StorageManager:
             with open(self.favorite_stocks_file, 'r') as f:
                 return json.load(f)
         return []
+
+    def save_portfolio(self, portfolio: dict) -> None:
+        with open(self.portfolio_file, 'w') as f:
+            json.dump(portfolio, f, indent=2)
+
+    def load_portfolio(self) -> dict:
+        if os.path.exists(self.portfolio_file):
+            with open(self.portfolio_file, 'r') as f:
+                return json.load(f)
+        return {"holdings": []}

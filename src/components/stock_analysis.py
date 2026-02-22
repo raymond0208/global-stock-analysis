@@ -15,6 +15,23 @@ import base64
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 
+
+@st.cache_data(ttl=300)
+def _fetch_price(symbol: str):
+    """5-minute cached current price and day-change."""
+    try:
+        hist = yf.Ticker(symbol).history(period="5d")
+        if hist.empty or len(hist) < 2:
+            return None
+        cur, prev = hist["Close"].iloc[-1], hist["Close"].iloc[-2]
+        return {
+            "price":      cur,
+            "change_pct": (cur - prev) / prev * 100,
+            "change_abs": cur - prev,
+        }
+    except Exception:
+        return None
+
 class StockAnalysisComponent:
     def __init__(self):
         self.stock_metrics = StockMetrics()
@@ -192,19 +209,52 @@ class StockAnalysisComponent:
             symbol = st.session_state.analyzed_symbol
             metrics = self.stock_metrics.get_stock_metrics(symbol)
             stock_data = self.fetch_stock_data(symbol)
-            
+
             if metrics and stock_data is not None:
+                # ── Perplexity-style stock header ──────────────────────────
+                price_data = _fetch_price(symbol)
+                if price_data:
+                    pos   = price_data["change_pct"] >= 0
+                    color = "#16a34a" if pos else "#dc2626"
+                    arrow = "↑" if pos else "↓"
+                    sign  = "+" if pos else ""
+                    st.markdown(
+                        f'<div class="sa-sym">{symbol}</div>'
+                        f'<div class="sa-price">${price_data["price"]:,.2f}</div>'
+                        f'<div class="sa-chg" style="color:{color}">'
+                        f'{arrow}&nbsp;{sign}{price_data["change_pct"]:.2f}%'
+                        f'&ensp;<span style="color:#94a3b8;font-weight:400;font-size:0.85rem">'
+                        f'({sign}${price_data["change_abs"]:,.2f})</span></div>',
+                        unsafe_allow_html=True,
+                    )
+                    st.markdown("<br>", unsafe_allow_html=True)
+
+                # ── Score gauge + recommendation ───────────────────────────
+                rec = metrics['Recommendation']
+                rec_colors = {
+                    "Strong Buy": ("#dcfce7", "#15803d"),
+                    "Buy":        ("#dbeafe", "#1d4ed8"),
+                    "Hold":       ("#fef9c3", "#854d0e"),
+                    "Sell":       ("#fee2e2", "#991b1b"),
+                    "Strong Sell":("#fee2e2", "#7f1d1d"),
+                }
+                rbg, rfg = rec_colors.get(rec, ("#f1f5f9", "#475569"))
+
                 col1, col2 = st.columns(2)
                 with col1:
                     st.plotly_chart(
-                        self.render_score_gauge(
-                            metrics['Score'], 
-                            f"{symbol} Analysis Score"
-                        )
+                        self.render_score_gauge(metrics['Score'], f"{symbol} Analysis Score"),
+                        use_container_width=True,
                     )
                 with col2:
-                    st.info(f"Recommendation: {metrics['Recommendation']}")
-                
+                    st.markdown("<br><br>", unsafe_allow_html=True)
+                    st.markdown(
+                        f'<span style="background:{rbg};color:{rfg};padding:6px 16px;'
+                        f'border-radius:999px;font-size:0.88rem;font-weight:700">'
+                        f'Recommendation: {rec}</span>',
+                        unsafe_allow_html=True,
+                    )
+
                 self.display_detailed_analysis(symbol, stock_data, metrics)
 
     def create_export_data(self, symbol, metrics, stock_data, ma_20, ma_50, rsi):
