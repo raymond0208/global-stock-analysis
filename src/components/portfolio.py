@@ -1,9 +1,7 @@
-import io
 import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
 import yfinance as yf
-from datetime import datetime, timedelta
 
 from src.models.portfolio_metrics import PortfolioMetrics
 from src.models.stock_metrics import StockMetrics
@@ -71,211 +69,6 @@ def _fetch_history(symbol: str, period: str = "1y"):
         return None
 
 
-# ── Securities PDF parser ────────────────────────────────────────────
-
-_EXCHANGES    = {"SG", "HK", "US"}
-_CURRENCIES   = {"SGD", "HKD", "USD"}
-_CCY_DEFAULT  = {"SG": "SGD", "HK": "HKD", "US": "USD"}
-_SKIP_WORDS   = {"TOTAL", "GRAND", "STOCK CODE", "QUANTITY ON HAND",
-                 "AVERAGE COST", "PREVIOUS DAY", "COMPANY NAME", "TRADED CURR"}
-
-
-def _clean_float(val) -> float:
-    if val is None:
-        return 0.0
-    s = str(val).replace(",", "").strip()
-    try:
-        return float(s)
-    except ValueError:
-        return 0.0
-
-
-def _normalise_symbol(raw: str, exchange: str) -> str:
-    raw = raw.strip()
-    if exchange == "SG":
-        return raw + ".SI"
-    if exchange == "HK":
-        return raw.zfill(4) + ".HK"
-    return raw  # US: as-is
-
-
-def _is_skip_row(col0: str, col1: str) -> bool:
-    u0, u1 = col0.upper(), col1.upper()
-    return any(kw in u0 for kw in _SKIP_WORDS) or any(kw in u1 for kw in _SKIP_WORDS)
-
-
-def _try_tables(pdf) -> list:
-    """Pass 1: pdfplumber structured table extraction.
-
-    Tries three strategies so section-header rows ("SG"/"HK"/"US") are
-    captured even when pdfplumber's auto-detect gives no tables.
-    The old `len(row) < 5` guard was removed: section headers can have
-    any number of columns and must be detected on col0 alone.
-    """
-    holdings = []
-    current_exchange = None
-
-    for page in pdf.pages:
-        tables = []
-        for settings in [
-            {"vertical_strategy": "lines", "horizontal_strategy": "lines"},
-            {"vertical_strategy": "text",  "horizontal_strategy": "text"},
-            {},   # pdfplumber default
-        ]:
-            tables = page.extract_tables(settings) if settings else page.extract_tables()
-            if tables:
-                break
-
-        for table in tables:
-            for row in table:
-                if not row:
-                    continue
-
-                col0 = str(row[0] or "").strip()
-                col1 = str(row[1] or "").strip() if len(row) > 1 else ""
-
-                # Exchange section header (may span all columns)
-                if col0 in _EXCHANGES:
-                    current_exchange = col0
-                    continue
-
-                if current_exchange is None or not col1:
-                    continue
-                if _is_skip_row(col0, col1):
-                    continue
-
-                raw_symbol     = col1
-                company        = col0 or raw_symbol
-                shares         = _clean_float(row[2] if len(row) > 2 else None)
-                currency       = str(row[3] or "").strip() if len(row) > 3 else ""
-                purchase_price = _clean_float(row[4] if len(row) > 4 else None)
-
-                if shares <= 0:
-                    continue
-                if currency not in _CURRENCIES:
-                    currency = _CCY_DEFAULT.get(current_exchange, "USD")
-
-                holdings.append({
-                    "symbol":         _normalise_symbol(raw_symbol, current_exchange),
-                    "company":        company,
-                    "shares":         shares,
-                    "purchase_price": purchase_price,
-                    "currency":       currency,
-                })
-
-    return holdings
-
-
-def _try_text(pdf) -> list:
-    """Pass 2: line-by-line text extraction, anchored on SGD/HKD/USD.
-
-    For each line containing a currency token the layout is:
-      ... COMPANY_WORDS  STOCK_CODE  QUANTITY  CURRENCY  AVG_COST ...
-    so stock_code = parts[ccy_idx-2], quantity = parts[ccy_idx-1].
-
-    e.g. "KEPPEL DC REIT AJBU 12,700 SGD 2.1220 ..."
-          company=KEPPEL DC REIT  symbol=AJBU  shares=12700  cost=2.122
-    """
-    holdings = []
-    current_exchange = None
-
-    for page in pdf.pages:
-        text = page.extract_text() or ""
-        for raw_line in text.split("\n"):
-            line = raw_line.strip()
-            if not line:
-                continue
-
-            if line in _EXCHANGES:
-                current_exchange = line
-                continue
-
-            upper = line.upper()
-            if any(kw in upper for kw in _SKIP_WORDS):
-                continue
-            if current_exchange is None:
-                continue
-
-            parts = line.split()
-            ccy_idx = next(
-                (i for i, p in enumerate(parts) if p in _CURRENCIES), None
-            )
-            if ccy_idx is None or ccy_idx < 2:
-                continue
-
-            try:
-                shares = float(parts[ccy_idx - 1].replace(",", ""))
-                if shares <= 0:
-                    continue
-
-                raw_symbol = parts[ccy_idx - 2]
-                company    = " ".join(parts[: ccy_idx - 2]) or raw_symbol
-                currency   = parts[ccy_idx]
-
-                purchase_price = 0.0
-                if ccy_idx + 1 < len(parts):
-                    try:
-                        purchase_price = float(parts[ccy_idx + 1].replace(",", ""))
-                    except ValueError:
-                        pass
-
-                holdings.append({
-                    "symbol":         _normalise_symbol(raw_symbol, current_exchange),
-                    "company":        company,
-                    "shares":         shares,
-                    "purchase_price": purchase_price,
-                    "currency":       currency,
-                })
-            except (ValueError, IndexError):
-                continue
-
-    return holdings
-
-
-def _parse_pdf(pdf_bytes: bytes) -> list:
-    """Parse Securities Holdings PDF.
-
-    Strategy 1: pdfplumber table extraction (three line strategies).
-    Strategy 2: text-based line parsing anchored on SGD/HKD/USD tokens.
-    If both return empty, a debug expander shows raw text + table dump.
-
-    Returns list of {symbol, company, shares, purchase_price, currency}.
-    """
-    try:
-        import pdfplumber
-    except ImportError:
-        st.error("pdfplumber not installed. Run: pip install pdfplumber>=0.11.0")
-        return []
-
-    holdings = []
-    try:
-        with pdfplumber.open(io.BytesIO(pdf_bytes)) as pdf:
-            holdings = _try_tables(pdf)
-
-            if not holdings:
-                holdings = _try_text(pdf)
-
-            if not holdings:
-                with st.expander("Debug: raw PDF content (no holdings detected)", expanded=True):
-                    for i, page in enumerate(pdf.pages):
-                        st.markdown(f"**Page {i + 1} — extracted text:**")
-                        st.code(page.extract_text() or "(no text)", language=None)
-                        tables = page.extract_tables()
-                        if tables:
-                            st.markdown(
-                                f"**Page {i + 1} — tables ({len(tables)} found, first 5 rows):**"
-                            )
-                            for j, tbl in enumerate(tables):
-                                st.markdown(f"Table {j + 1}:")
-                                st.write(tbl[:5])
-                        else:
-                            st.markdown(f"*Page {i + 1}: no tables detected.*")
-    except Exception as e:
-        st.error(f"Error reading PDF: {e}")
-
-    return holdings
-
-
 # ── Main component ────────────────────────────────────────────────────────────
 
 class PortfolioComponent:
@@ -298,8 +91,6 @@ class PortfolioComponent:
             st.session_state.portfolio = (
                 st.session_state.storage_manager.load_portfolio()
             )
-        if "pdf_preview" not in st.session_state:
-            st.session_state.pdf_preview = None
 
     # ── FX rates helper ───────────────────────────────────────────────────
 
@@ -350,43 +141,7 @@ class PortfolioComponent:
         left, right = st.columns([2, 1], gap="large")
 
         with right:
-            st.markdown('<div class="sec-head">Import PDF</div>', unsafe_allow_html=True)
-            with st.container(border=True):
-                uploaded = st.file_uploader(
-                    "Securities PDF",
-                    type=["pdf"],
-                    label_visibility="collapsed",
-                )
-                if uploaded and st.button("Parse PDF", type="primary", use_container_width=True):
-                    parsed = _parse_pdf(uploaded.read())
-                    if parsed:
-                        st.session_state.pdf_preview = parsed
-                        st.success(f"Parsed {len(parsed)} holdings — review below.")
-                    else:
-                        st.warning("No holdings found. Check the PDF format.")
-
-            if st.session_state.pdf_preview:
-                st.markdown('<div class="sec-head">Review & Confirm</div>', unsafe_allow_html=True)
-                df_preview = pd.DataFrame(st.session_state.pdf_preview)
-                df_edited  = st.data_editor(
-                    df_preview,
-                    use_container_width=True,
-                    num_rows="dynamic",
-                    key="pdf_editor",
-                )
-                if st.button("Confirm & Save", type="primary", use_container_width=True):
-                    new_holdings = df_edited.to_dict("records")
-                    # Coerce numeric types
-                    for h in new_holdings:
-                        h["shares"]         = float(h.get("shares", 0) or 0)
-                        h["purchase_price"] = float(h.get("purchase_price", 0) or 0)
-                    st.session_state.portfolio = {"holdings": new_holdings}
-                    st.session_state.storage_manager.save_portfolio(st.session_state.portfolio)
-                    st.session_state.pdf_preview = None
-                    st.success("Portfolio saved!")
-                    st.rerun()
-
-            st.markdown('<div class="sec-head">Add Manually</div>', unsafe_allow_html=True)
+            st.markdown('<div class="sec-head">Add Holding</div>', unsafe_allow_html=True)
             with st.container(border=True):
                 with st.form("add_holding_form", clear_on_submit=True):
                     sym      = st.text_input("Symbol", placeholder="e.g. 0700.HK")
@@ -413,7 +168,7 @@ class PortfolioComponent:
         # ── Holdings table ──
         with left:
             if not holdings:
-                st.info("No holdings yet. Import a Securities PDF or add manually.")
+                st.info("No holdings yet. Add a holding using the form on the right.")
                 return
 
             fx_rates     = self._get_fx_rates()
@@ -427,7 +182,6 @@ class PortfolioComponent:
                 grouped[r].append(h)
 
             rows_html = ""
-            to_delete = []
 
             for region, region_holdings in grouped.items():
                 if not region_holdings:
@@ -479,7 +233,6 @@ class PortfolioComponent:
                         f'  <td style="text-align:right;color:{gl_color}">{gl_str}</td>'
                         f'</tr>'
                     )
-                    to_delete.append(sym)
 
             st.markdown(
                 f'<table class="wl-table">'
