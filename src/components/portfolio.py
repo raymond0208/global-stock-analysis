@@ -71,10 +71,10 @@ def _fetch_history(symbol: str, period: str = "1y"):
         return None
 
 
-# ── Phillip Securities PDF parser ────────────────────────────────────────────
+# ── Securities PDF parser ────────────────────────────────────────────
 
-def _parse_phillip_pdf(pdf_bytes: bytes) -> list:
-    """Parse Phillip Securities Holdings PDF.
+def _parse_pdf(pdf_bytes: bytes) -> list:
+    """Parse Securities Holdings PDF.
 
     Column layout (0-indexed):
       0 = Company name / exchange section header ("SG","HK","US") / totals
@@ -239,12 +239,12 @@ class PortfolioComponent:
             st.markdown('<div class="sec-head">Import PDF</div>', unsafe_allow_html=True)
             with st.container(border=True):
                 uploaded = st.file_uploader(
-                    "Phillip Securities PDF",
+                    "Securities PDF",
                     type=["pdf"],
                     label_visibility="collapsed",
                 )
                 if uploaded and st.button("Parse PDF", type="primary", use_container_width=True):
-                    parsed = _parse_phillip_pdf(uploaded.read())
+                    parsed = _parse_pdf(uploaded.read())
                     if parsed:
                         st.session_state.pdf_preview = parsed
                         st.success(f"Parsed {len(parsed)} holdings — review below.")
@@ -299,7 +299,7 @@ class PortfolioComponent:
         # ── Holdings table ──
         with left:
             if not holdings:
-                st.info("No holdings yet. Import a Phillip Securities PDF or add manually.")
+                st.info("No holdings yet. Import a Securities PDF or add manually.")
                 return
 
             fx_rates     = self._get_fx_rates()
