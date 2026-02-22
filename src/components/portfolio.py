@@ -73,91 +73,224 @@ def _fetch_history(symbol: str, period: str = "1y"):
 
 # ── Phillip Securities PDF parser ────────────────────────────────────────────
 
+_EXCHANGES   = {"SG", "HK", "US"}
+_CURRENCIES  = {"SGD", "HKD", "USD"}
+_CCY_DEFAULT = {"SG": "SGD", "HK": "HKD", "US": "USD"}
+_SKIP_KEYWORDS = {"TOTAL", "GRAND", "STOCK CODE", "QUANTITY ON HAND",
+                  "AVERAGE COST", "PREVIOUS DAY", "COMPANY NAME", "TRADED CURR"}
+
+
+def _clean_float(val) -> float:
+    if val is None:
+        return 0.0
+    s = str(val).replace(",", "").strip()
+    try:
+        return float(s)
+    except ValueError:
+        return 0.0
+
+
+def _normalise_symbol(raw: str, exchange: str) -> str:
+    raw = raw.strip()
+    if exchange == "SG":
+        return raw + ".SI"
+    if exchange == "HK":
+        return raw.zfill(4) + ".HK"
+    return raw  # US: as-is
+
+
+def _is_skip_row(col0: str, col1: str) -> bool:
+    """True for header / total / blank rows that should be ignored."""
+    upper0 = col0.upper()
+    upper1 = col1.upper()
+    if any(kw in upper0 for kw in _SKIP_KEYWORDS):
+        return True
+    if any(kw in upper1 for kw in _SKIP_KEYWORDS):
+        return True
+    return False
+
+
+def _try_tables(pdf) -> list:
+    """Pass 1: pdfplumber structured table extraction.
+
+    Tries explicit line-based strategy first, then default auto-detect.
+    Section-header rows ("SG"/"HK"/"US") are correctly handled even when
+    they have fewer than 5 columns (the old len<5 guard caused them to be
+    silently dropped so current_exchange was never updated).
+    """
+    holdings = []
+    current_exchange = None
+
+    strategies = [
+        {"vertical_strategy": "lines", "horizontal_strategy": "lines"},
+        {"vertical_strategy": "text",  "horizontal_strategy": "text"},
+        {},   # pdfplumber default
+    ]
+
+    for page in pdf.pages:
+        tables = []
+        for s in strategies:
+            tables = page.extract_tables(s) if s else page.extract_tables()
+            if tables:
+                break
+
+        for table in tables:
+            for row in table:
+                if not row:
+                    continue
+
+                col0 = str(row[0] or "").strip()
+                col1 = str(row[1] or "").strip() if len(row) > 1 else ""
+
+                # ── Exchange section header ──
+                if col0 in _EXCHANGES:
+                    current_exchange = col0
+                    continue
+
+                # ── Skip non-data rows ──
+                if current_exchange is None or not col1:
+                    continue
+                if _is_skip_row(col0, col1):
+                    continue
+
+                raw_symbol     = col1
+                company        = col0 or raw_symbol
+                shares         = _clean_float(row[2] if len(row) > 2 else None)
+                currency       = str(row[3] or "").strip() if len(row) > 3 else ""
+                purchase_price = _clean_float(row[4] if len(row) > 4 else None)
+
+                if shares <= 0:
+                    continue
+                if currency not in _CURRENCIES:
+                    currency = _CCY_DEFAULT.get(current_exchange, "USD")
+
+                holdings.append({
+                    "symbol":         _normalise_symbol(raw_symbol, current_exchange),
+                    "company":        company,
+                    "shares":         shares,
+                    "purchase_price": purchase_price,
+                    "currency":       currency,
+                })
+
+    return holdings
+
+
+def _try_text(pdf) -> list:
+    """Pass 2: line-by-line text extraction using currency code as anchor.
+
+    For each line that contains SGD/HKD/USD, the token immediately before the
+    currency is the quantity and the token two positions before is the stock
+    code.  Everything to the left of the stock code is the company name.
+
+    e.g.  "KEPPEL DC REIT AJBU 12,700 SGD 2.1220 ..."
+           company=KEPPEL DC REIT  symbol=AJBU  shares=12700  ccy=SGD  cost=2.122
+    """
+    holdings = []
+    current_exchange = None
+
+    for page in pdf.pages:
+        text = page.extract_text() or ""
+        for raw_line in text.split("\n"):
+            line = raw_line.strip()
+            if not line:
+                continue
+
+            # Exchange section header (sometimes appears alone on a line)
+            if line in _EXCHANGES:
+                current_exchange = line
+                continue
+
+            # Skip known header / total patterns
+            upper = line.upper()
+            if any(kw in upper for kw in _SKIP_KEYWORDS):
+                continue
+
+            if current_exchange is None:
+                continue
+
+            parts = line.split()
+
+            # Find the currency token
+            ccy_idx = next(
+                (i for i, p in enumerate(parts) if p in _CURRENCIES), None
+            )
+            # Need at least: stock_code, quantity, currency (3 tokens before or at ccy)
+            if ccy_idx is None or ccy_idx < 2:
+                continue
+
+            try:
+                qty_str = parts[ccy_idx - 1].replace(",", "")
+                shares = float(qty_str)
+                if shares <= 0:
+                    continue
+
+                raw_symbol = parts[ccy_idx - 2]
+                company    = " ".join(parts[: ccy_idx - 2]) or raw_symbol
+                currency   = parts[ccy_idx]
+
+                purchase_price = 0.0
+                if ccy_idx + 1 < len(parts):
+                    try:
+                        purchase_price = float(parts[ccy_idx + 1].replace(",", ""))
+                    except ValueError:
+                        pass
+
+                holdings.append({
+                    "symbol":         _normalise_symbol(raw_symbol, current_exchange),
+                    "company":        company,
+                    "shares":         shares,
+                    "purchase_price": purchase_price,
+                    "currency":       currency,
+                })
+            except (ValueError, IndexError):
+                continue
+
+    return holdings
+
+
 def _parse_phillip_pdf(pdf_bytes: bytes) -> list:
     """Parse Phillip Securities Holdings PDF.
 
-    Column layout (0-indexed):
-      0 = Company name / exchange section header ("SG","HK","US") / totals
-      1 = Stock Code
-      2 = Quantity on Hand (a)   → shares
-      3 = Traded Curr             → currency
-      4 = Average Cost Price      → purchase_price
-      5–10 = ignored (fetched live from yfinance)
+    Tries two strategies in order:
+      1. pdfplumber structured table extraction (multiple line strategies)
+      2. Text-based line parsing anchored on SGD/HKD/USD currency tokens
 
+    Shows a debug expander with raw text + table dump when both fail.
     Returns list of {symbol, company, shares, purchase_price, currency}.
     """
     try:
         import pdfplumber
     except ImportError:
-        st.error("pdfplumber not installed. Run: pip install pdfplumber")
+        st.error("pdfplumber not installed. Run: pip install pdfplumber>=0.11.0")
         return []
 
     holdings = []
-    current_exchange = "US"  # default
-
-    def _clean_float(val) -> float:
-        if val is None:
-            return 0.0
-        s = str(val).replace(",", "").strip()
-        try:
-            return float(s)
-        except ValueError:
-            return 0.0
-
     try:
         with pdfplumber.open(io.BytesIO(pdf_bytes)) as pdf:
-            for page in pdf.pages:
-                for table in page.extract_tables():
-                    for row in table:
-                        if not row or len(row) < 5:
-                            continue
+            # ── Pass 1: structured tables ──
+            holdings = _try_tables(pdf)
 
-                        col0 = str(row[0] or "").strip()
-                        col1 = str(row[1] or "").strip()
+            # ── Pass 2: text fallback ──
+            if not holdings:
+                holdings = _try_text(pdf)
 
-                        # Detect exchange section headers
-                        if col0 in {"SG", "HK", "US"} and not col1:
-                            current_exchange = col0
-                            continue
-
-                        # Skip header rows, total rows, blank rows
-                        if not col1:
-                            continue
-                        if "Stock Code" in col1 or "TOTAL" in col0.upper() or "GRAND" in col0.upper():
-                            continue
-                        if col1 in {"Stock Code", "Code"}:
-                            continue
-
-                        # Parse the holding
-                        company       = col0 or col1
-                        raw_symbol    = col1
-                        shares        = _clean_float(row[2] if len(row) > 2 else None)
-                        currency      = str(row[3] or "").strip() if len(row) > 3 else ""
-                        purchase_price = _clean_float(row[4] if len(row) > 4 else None)
-
-                        if shares <= 0:
-                            continue
-                        if not currency:
-                            # Infer currency from exchange
-                            currency = {"SG": "SGD", "HK": "HKD", "US": "USD"}.get(current_exchange, "USD")
-
-                        # Symbol normalisation
-                        if current_exchange == "SG":
-                            symbol = raw_symbol + ".SI"
-                        elif current_exchange == "HK":
-                            symbol = raw_symbol.zfill(4) + ".HK"
+            # ── Debug: show raw content if still empty ──
+            if not holdings:
+                with st.expander("Debug: raw PDF content (no holdings detected)", expanded=True):
+                    for i, page in enumerate(pdf.pages):
+                        st.markdown(f"**Page {i + 1} — extracted text:**")
+                        st.code(page.extract_text() or "(no text)", language=None)
+                        tables = page.extract_tables()
+                        if tables:
+                            st.markdown(f"**Page {i + 1} — tables ({len(tables)} found, first 5 rows each):**")
+                            for j, tbl in enumerate(tables):
+                                st.markdown(f"Table {j + 1}:")
+                                st.write(tbl[:5])
                         else:
-                            symbol = raw_symbol  # US: as-is
+                            st.markdown(f"*Page {i + 1}: no tables detected by pdfplumber.*")
 
-                        holdings.append({
-                            "symbol":         symbol,
-                            "company":        company,
-                            "shares":         shares,
-                            "purchase_price": purchase_price,
-                            "currency":       currency,
-                        })
     except Exception as e:
-        st.error(f"Error parsing PDF: {e}")
+        st.error(f"Error reading PDF: {e}")
 
     return holdings
 
